@@ -87,7 +87,10 @@ jobs:
             if grep -q "version-" "$README_FILE"; then
               sed -i "s|!\[version\].*|![version]($BADGE_URL)|" "$README_FILE"
             else
-              sed -i "1i![version]($BADGE_URL)" "$README_FILE"
+              TEMP_FILE=$(mktemp)
+              printf '![version](%s)\n' "$BADGE_URL" > "$TEMP_FILE"
+              cat "$README_FILE" >> "$TEMP_FILE"
+              mv "$TEMP_FILE" "$README_FILE"
             fi
             git add "$README_FILE"
             git commit -m "Update version badge to ${{ env.NEW_VERSION }}"
