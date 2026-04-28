@@ -172,13 +172,13 @@ export class GroqClient implements LLMClient {
       model: this.model,
       messages: [
         {
-          role: 'user',
+          role: 'assistant',
           content: prompt,
         },
       ],
-      temperature: 1,
+      temperature: 5,
       max_completion_tokens: 8192,
-      top_p: 1,
+      top_p: 1.5,
       reasoning_effort: 'medium',
       stream: false,
     };
