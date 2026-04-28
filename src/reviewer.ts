@@ -56,6 +56,75 @@ function mapLineToPosition(patch: string | null, targetLine: number): number | n
   return null;
 }
 
+function normalizeForCompare(s: string): string {
+  return s.replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+function mapLineToPositionWithContent(patch: string | null, targetLine: number, fileContent: string | null): number | null {
+  if (!patch) return null;
+  const lines = patch.split(/\r?\n/);
+  let position = 0;
+  let currentNewLine = 0;
+
+  const fileLines = fileContent ? fileContent.split(/\r?\n/) : null;
+  const targetText = fileLines && targetLine > 0 && targetLine <= fileLines.length ? normalizeForCompare(fileLines[targetLine - 1]) : '';
+
+  // Track closest candidate if exact match not found
+  let closest: { position: number; newLine: number; delta: number } | null = null;
+
+  for (const rawLine of lines) {
+    if (rawLine.startsWith('@@')) {
+      const match = /@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/.exec(rawLine);
+      if (match) {
+        currentNewLine = Number(match[1]);
+      } else {
+        currentNewLine = 0;
+      }
+      continue;
+    }
+
+    if (rawLine.startsWith('\\ No newline')) {
+      continue;
+    }
+
+    const prefix = rawLine[0];
+    if (prefix !== ' ' && prefix !== '+' && prefix !== '-') {
+      continue;
+    }
+
+    position++;
+
+    if (prefix === ' ' || prefix === '+') {
+      const newLineNum = currentNewLine;
+      const patchText = normalizeForCompare(rawLine.slice(1));
+
+      if (targetText) {
+        // Exact or partial match check
+        if (targetText && patchText && (patchText === targetText || patchText.includes(targetText) || targetText.includes(patchText))) {
+          if (newLineNum === targetLine) return position;
+          // if content matches but different newLine (rare), prefer exact newLine match; otherwise record candidate
+          const delta = Math.abs(newLineNum - targetLine);
+          if (!closest || delta < closest.delta) {
+            closest = { position, newLine: newLineNum, delta };
+          }
+        } else if (newLineNum === targetLine) {
+          // content mismatch but same newLine number -> still return this position as best-effort
+          return position;
+        }
+      } else {
+        if (newLineNum === targetLine) return position;
+      }
+
+      currentNewLine++;
+    } else if (prefix === '-') {
+      // deleted line in old file: advances diff position but not new-file line number
+    }
+  }
+
+  if (closest) return closest.position;
+  return mapLineToPosition(patch, targetLine);
+}
+
 interface LinkedIssue {
   number: number;
   title: string;
@@ -713,9 +782,23 @@ export async function runReview(context: ReviewContext): Promise<void> {
     }
   }
 
+  // Fetch file contents for all comment paths to improve mapping accuracy
+  const fileContentCache = new Map<string, string | null>();
+  const commentPaths = Array.from(new Set(comments.map((c) => c.path)));
+  for (const p of commentPaths) {
+    const file = changedFiles.find((f) => f.path === p);
+    if (!file) {
+      fileContentCache.set(p, null);
+      continue;
+    }
+    const content = await fetchFileContent(p);
+    fileContentCache.set(p, content);
+  }
+
   for (const comment of comments) {
     const file = changedFiles.find((f) => f.path === comment.path);
-    const position = mapLineToPosition(file?.patch ?? null, comment.line);
+    const fileContent = fileContentCache.get(comment.path) ?? null;
+    const position = mapLineToPositionWithContent(file?.patch ?? null, comment.line, fileContent);
 
     if (comment.suggestion && position && position > 0) {
       const looksRelevant = await suggestionLooksRelevant(comment.path, comment.suggestion);
