@@ -1,9 +1,9 @@
 name: Coderabbit PR Reviewer
-description: Self-hosted GitHub Action that generates PR review summaries and inline comments using any LLM provider.
+description: GitHub Action that generates PR review summaries and inline comments using any LLM provider.
 inputs:
   github_token:
     description: GitHub token for PR review actions
-    required: true
+    required: false
   llm_provider:
     description: LLM provider key
     required: false
@@ -20,5 +20,24 @@ inputs:
     required: false
     default: both
 runs:
-  using: node16
-  main: dist/action.js
+  using: composite
+  steps:
+    - name: Setup Node
+      uses: actions/setup-node@v5
+      with:
+        node-version: '20'
+    - name: Install dependencies
+      run: npm install
+      working-directory: ${{ github.action_path }}
+    - name: Build action
+      run: npm run build
+      working-directory: ${{ github.action_path }}
+    - name: Run Coderabbit reviewer
+      run: node dist/action.js
+      working-directory: ${{ github.action_path }}
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        LLM_PROVIDER: ${{ inputs.llm_provider }}
+        LLM_API_URL: ${{ inputs.llm_api_url }}
+        LLM_API_KEY: ${{ inputs.llm_api_key }}
+        REVIEW_MODE: ${{ inputs.review_mode }}
