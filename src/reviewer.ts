@@ -77,6 +77,7 @@ const promptTemplate = ({
   reviewMode,
   toneMode,
   additionalFiles,
+  specialInstructions,
 }: {
   title: string;
   body: string | null;
@@ -87,7 +88,9 @@ const promptTemplate = ({
   reviewMode: import('./types.js').ReviewMode;
   toneMode: ToneMode;
   additionalFiles?: Array<{ path: string; content: string }>;
+  specialInstructions?: string;
 }) => `You are an expert code reviewer embedded in a GitHub Action. Your job is to review pull requests with deep technical understanding, sharp judgment, and a human tone. You are NOT a linter. You think before you speak.
+${specialInstructions ? `\n**NOTE FOR REVIEWER:** ${specialInstructions}\n` : ''}
 
 Note: The reviewer will be run on the code checked out by CI. Do not assume runtime code differs from the diff you are given.
 
@@ -376,6 +379,7 @@ interface PromptOptions {
   reviewMode?: import('./types.js').ReviewMode;
   toneMode?: ToneMode;
   additionalFiles?: Array<{ path: string; content: string }>;
+  specialInstructions?: string;
 }
 
 export function buildReviewPrompt({
@@ -388,8 +392,9 @@ export function buildReviewPrompt({
   reviewMode = 'both',
   toneMode = 'balanced',
   additionalFiles,
+  specialInstructions,
 }: PromptOptions): string {
-  return promptTemplate({ title, body, linkedIssues, repositoryFiles, changedFiles, skippedFiles, reviewMode, toneMode, additionalFiles });
+  return promptTemplate({ title, body, linkedIssues, repositoryFiles, changedFiles, skippedFiles, reviewMode, toneMode, additionalFiles, specialInstructions });
 }
 
 export function parseReviewResponse(text: string): ReviewResponse {
@@ -605,6 +610,22 @@ export async function runReview(context: ReviewContext): Promise<void> {
     collectRepositoryFiles(process.cwd()),
   ]);
 
+  // Detect Dependabot PRs and set a concise, lockfile-focused instruction
+  const author = (pullRequest.user && (pullRequest.user as any).login) || '';
+  const headRef = (pullRequest.head && (pullRequest.head as any).ref) || '';
+  const isDependabot = /dependabot/i.test(String(author)) || /^dependabot\//i.test(String(headRef));
+
+  // Determine if the PR changes only manifest/lock files
+  const manifestOrLock = (p: string) => /(^|\/)package\.json$|(^|\/)package-lock\.json$|(^|\/)yarn\.lock$|(^|\/)pnpm-lock\.yaml$/i.test(p);
+  const changedPaths = changedFiles.map((f) => f.path);
+  const dependencyOnly = changedPaths.length > 0 && changedPaths.every(manifestOrLock);
+
+  const specialInstructions = isDependabot
+    ? dependencyOnly
+      ? 'This PR is opened by Dependabot and appears to only update package manifests/lockfiles. Provide a very short summary and verify the lockfile is updated; do NOT speculate about higher-level goals. Prefer concise action items.'
+      : 'This PR is opened by Dependabot. Focus on whether dependency bumps are correct and whether lockfiles/lock updates are present; be concise.'
+    : undefined;
+
   const prompt = buildReviewPrompt({
     title: pullRequest.title,
     body: pullRequest.body,
@@ -614,6 +635,7 @@ export async function runReview(context: ReviewContext): Promise<void> {
     skippedFiles,
     reviewMode: context.reviewMode,
     toneMode: context.toneMode,
+    specialInstructions,
   });
   const client = createLLMClient(context.llmProvider, {
     apiKey: context.llmApiKey,
