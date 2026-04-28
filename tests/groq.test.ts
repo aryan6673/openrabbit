@@ -16,7 +16,6 @@ describe('GroqClient', () => {
 
   it('tries the chat completion endpoint first when the base URL already ends with /v1', async () => {
     fetchMock
-      .mockRejectedValueOnce(new TypeError('fetch failed'))
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
@@ -38,15 +37,9 @@ describe('GroqClient', () => {
 
     const response = await client.complete('Review this');
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      1,
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
       'https://api.groq.com/openai/v1/chat/completions',
-      expect.objectContaining({ method: 'POST' }),
-    );
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      2,
-      'https://api.groq.com/openai/v1/completions',
       expect.objectContaining({ method: 'POST' }),
     );
     expect(response.review).toBe('Looks good');
@@ -79,6 +72,26 @@ describe('GroqClient', () => {
     expect(fetchMock).toHaveBeenCalledWith(
       'https://api.groq.com/openai/v1/chat/completions',
       expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
+  it('reports every attempted endpoint when requests fail', async () => {
+    fetchMock
+      .mockRejectedValueOnce(new TypeError('fetch failed'))
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        text: async () => '{"error":"missing"}',
+      });
+
+    const client = new GroqClient({
+      apiKey: 'test-key',
+      apiUrl: 'https://api.groq.com/openai',
+      model: 'openai/gpt-oss-120b',
+    });
+
+    await expect(client.complete('Review this')).rejects.toThrow(
+      'Groq request failed for all endpoints. Errors: request to https://api.groq.com/openai/v1/chat/completions failed: fetch failed | request to https://api.groq.com/openai/chat/completions failed: Groq API error 404 from https://api.groq.com/openai/chat/completions: {"error":"missing"}',
     );
   });
 });

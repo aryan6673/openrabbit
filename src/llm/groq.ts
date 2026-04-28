@@ -88,9 +88,9 @@ export class GroqClient implements LLMClient {
   private buildEndpoints(): string[] {
     const base = this.apiUrl;
     if (base.endsWith('/v1')) {
-      return [`${base}/chat/completions`, `${base}/completions`];
+      return [`${base}/chat/completions`];
     }
-    return [`${base}/v1/chat/completions`, `${base}/chat/completions`, `${base}/v1/completions`];
+    return [`${base}/v1/chat/completions`, `${base}/chat/completions`];
   }
 
   private buildRequestBody(prompt: string) {
@@ -113,7 +113,7 @@ export class GroqClient implements LLMClient {
   async complete(prompt: string): Promise<ReviewResponse> {
     const endpoints = this.buildEndpoints();
     const body = JSON.stringify(this.buildRequestBody(prompt));
-    let lastError: Error | null = null;
+    const failures: string[] = [];
 
     for (const url of endpoints) {
       try {
@@ -135,10 +135,10 @@ export class GroqClient implements LLMClient {
         const text = extractTextFromResponse(responseBody);
         return parseReviewResponse(text);
       } catch (error) {
-        lastError = new Error(`request to ${url} failed: ${describeFetchError(error)}`);
+        failures.push(`request to ${url} failed: ${describeFetchError(error)}`);
       }
     }
 
-    throw new Error(`Groq request failed for all endpoints. Last error: ${lastError?.message ?? 'unknown error'}`);
+    throw new Error(`Groq request failed for all endpoints. Errors: ${failures.join(' | ') || 'unknown error'}`);
   }
 }
