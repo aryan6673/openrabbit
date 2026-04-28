@@ -112,12 +112,63 @@ function parseReviewResponse(raw: string): ReviewResponse {
       } catch {
       }
     }
+    // Attempt to extract common string fields from JSON-like text (best-effort)
+    function extractStringField(objText: string, key: string): string | null {
+      const keyIndex = objText.indexOf(`\"${key}\"`);
+      if (keyIndex < 0) return null;
+      let i = keyIndex + key.length + 2; // position after "key"
+      // find ':'
+      const colon = objText.indexOf(':', i);
+      if (colon < 0) return null;
+      i = colon + 1;
+      // skip whitespace
+      while (i < objText.length && /\s/.test(objText[i])) i++;
+      if (i >= objText.length) return null;
+      const quote = objText[i];
+      if (quote !== '"' && quote !== "'") return null;
+      i++;
+      let result = '';
+      let escaped = false;
+      for (; i < objText.length; i++) {
+        const ch = objText[i];
+        if (escaped) {
+          result += ch;
+          escaped = false;
+          continue;
+        }
+        if (ch === '\\') {
+          escaped = true;
+          result += ch; // keep the backslash for JSON.parse later
+          continue;
+        }
+        if (ch === quote) {
+          // try to JSON.parse the extracted string to unescape sequences
+          try {
+            const parsed = JSON.parse(quote + result + quote);
+            return String(parsed);
+          } catch {
+            return result;
+          }
+        }
+        result += ch;
+      }
+      return null;
+    }
+
+    const extractedOverview = extractStringField(text, 'overview') ?? extractStringField(text, 'summary');
+    const extractedVerdict = extractStringField(text, 'verdict');
+    const extractedPrimary = extractStringField(text, 'primaryGoal') ?? extractStringField(text, 'primary_goal');
+
+    const summary: any = {
+      overview: extractedOverview ?? text,
+      reuseNotes: [],
+      actionItems: [],
+    };
+    if (extractedVerdict) summary.verdict = extractedVerdict;
+    if (extractedPrimary) summary.primaryGoal = extractedPrimary;
+
     return {
-      summary: {
-        overview: text,
-        reuseNotes: [],
-        actionItems: [],
-      },
+      summary,
       comments: [],
       separatePrSuggestions: [],
     };
