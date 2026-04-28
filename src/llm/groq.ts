@@ -61,37 +61,60 @@ export class GroqClient implements LLMClient {
     this.model = config.model;
   }
 
-  async complete(prompt: string): Promise<ReviewResponse> {
-    const response = await fetch(`${this.apiUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: this.model,
-        messages: [
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-        temperature: 1,
-        max_completion_tokens: 8192,
-        top_p: 1,
-        reasoning_effort: 'medium',
-        stream: false,
-        stop: null,
-      }),
-    });
+  private buildEndpoints(): string[] {
+    const base = this.apiUrl;
+    if (base.endsWith('/v1')) {
+      return [`${base}/chat/completions`, `${base}/completions`];
+    }
+    return [`${base}/v1/chat/completions`, `${base}/chat/completions`, `${base}/v1/completions`];
+  }
 
-    if (!response.ok) {
-      const body = await response.text();
-      throw new Error(`Groq API error ${response.status}: ${body}`);
+  private buildRequestBody(prompt: string) {
+    return {
+      model: this.model,
+      messages: [
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+      temperature: 1,
+      max_completion_tokens: 8192,
+      top_p: 1,
+      reasoning_effort: 'medium',
+      stream: false,
+    };
+  }
+
+  async complete(prompt: string): Promise<ReviewResponse> {
+    const endpoints = this.buildEndpoints();
+    const body = JSON.stringify(this.buildRequestBody(prompt));
+    let lastError: Error | null = null;
+
+    for (const url of endpoints) {
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${this.apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body,
+        });
+
+        if (!response.ok) {
+          const responseText = await response.text();
+          throw new Error(`Groq API error ${response.status} from ${url}: ${responseText}`);
+        }
+
+        const responseBody = await response.json();
+        const text = extractTextFromResponse(responseBody);
+        return parseReviewResponse(text);
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+      }
     }
 
-    const body = await response.json();
-    const text = extractTextFromResponse(body);
-    return parseReviewResponse(text);
+    throw new Error(`Groq request failed for all endpoints. Last error: ${lastError?.message ?? 'unknown error'}`);
   }
 }
