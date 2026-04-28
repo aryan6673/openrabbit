@@ -19,6 +19,7 @@ async function main(): Promise<void> {
   const llmProvider = (getValue('llm-provider', 'LLM_PROVIDER', 'groq') as LLMProvider);
   const llmApiUrl = getValue('llm-api-url', 'LLM_API_URL', 'https://api.groq.ai/v1');
   const llmApiKey = getValue('llm-api-key', 'LLM_API_KEY');
+  const llmModel = getValue('llm-model', 'LLM_MODEL', 'openai/gpt-oss-120b');
   const reviewMode = (getValue('review-mode', 'REVIEW_MODE', 'both') as ReviewMode);
 
   if (!owner || !repo || !pullNumber || !githubToken || !llmApiKey) {
@@ -34,6 +35,7 @@ async function main(): Promise<void> {
     llmProvider,
     llmApiUrl,
     llmApiKey,
+    llmModel,
     reviewMode,
   });
 }

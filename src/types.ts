@@ -3,6 +3,7 @@ export type LLMProvider = 'groq';
 export interface LLMConfig {
   apiKey: string;
   apiUrl: string;
+  model: string;
 }
 export interface ReviewComment {
   path: string;
@@ -21,5 +22,6 @@ export interface ReviewContext {
   llmProvider: LLMProvider;
   llmApiUrl: string;
   llmApiKey: string;
+  llmModel: string;
   reviewMode: ReviewMode;
 }

@@ -15,6 +15,10 @@ inputs:
   llm_api_key:
     description: API key for the LLM provider
     required: false
+  llm_model:
+    description: Model name for Groq chat completions
+    required: false
+    default: openai/gpt-oss-120b
   review_mode:
     description: Create summary, inline comments, or both
     required: false
@@ -40,4 +44,4 @@ runs:
         LLM_PROVIDER: ${{ inputs.llm_provider }}
         LLM_API_URL: ${{ inputs.llm_api_url }}
         LLM_API_KEY: ${{ inputs.llm_api_key }}
-        REVIEW_MODE: ${{ inputs.review_mode }}
+          LLM_MODEL: ${{ inputs.llm_model }}

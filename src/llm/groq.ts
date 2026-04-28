@@ -9,17 +9,23 @@ function extractTextFromResponse(body: any): string {
   if (typeof body === 'string') {
     return body;
   }
-  if (typeof body.completion === 'string') {
-    return body.completion;
-  }
-  if (Array.isArray(body.completions) && typeof body.completions[0]?.text === 'string') {
-    return body.completions[0].text;
-  }
-  if (Array.isArray(body.outputs) && typeof body.outputs[0]?.content === 'string') {
-    return body.outputs[0].content;
+  const choice = Array.isArray(body.choices) ? body.choices[0] : null;
+  if (choice) {
+    if (typeof choice.text === 'string') {
+      return choice.text;
+    }
+    if (choice.message && typeof choice.message.content === 'string') {
+      return choice.message.content;
+    }
+    if (typeof choice.delta?.content === 'string') {
+      return choice.delta.content;
+    }
   }
   if (typeof body.output === 'string') {
     return body.output;
+  }
+  if (Array.isArray(body.outputs) && typeof body.outputs[0]?.content === 'string') {
+    return body.outputs[0].content;
   }
   return JSON.stringify(body);
 }
@@ -47,24 +53,35 @@ function parseReviewResponse(raw: string): ReviewResponse {
 export class GroqClient implements LLMClient {
   readonly apiKey: string;
   readonly apiUrl: string;
+  readonly model: string;
 
   constructor(config: LLMConfig) {
     this.apiKey = config.apiKey;
     this.apiUrl = config.apiUrl.replace(/\/$/, '');
+    this.model = config.model;
   }
 
   async complete(prompt: string): Promise<ReviewResponse> {
-    const response = await fetch(`${this.apiUrl}/complete`, {
+    const response = await fetch(`${this.apiUrl}/chat/completions`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'groq-alpha-large',
-        prompt,
-        max_output_tokens: 1024,
-        temperature: 0.2,
+        model: this.model,
+        messages: [
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+        temperature: 1,
+        max_completion_tokens: 8192,
+        top_p: 1,
+        reasoning_effort: 'medium',
+        stream: false,
+        stop: null,
       }),
     });
 
