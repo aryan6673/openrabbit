@@ -6,7 +6,7 @@ export interface LLMClient {
 }
 
 export function createLLMClient(provider: LLMProvider, config: LLMConfig): LLMClient {
-  if (provider === 'groq') {
+  if (provider === 'groq' || provider === 'openrouter') {
     return new GroqClient(config);
   }
   throw new Error(`Unsupported provider ${provider}`);

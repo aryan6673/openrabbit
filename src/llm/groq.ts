@@ -128,7 +128,7 @@ export class GroqClient implements LLMClient {
 
         if (!response.ok) {
           const responseText = await response.text();
-          throw new Error(`Groq API error ${response.status} from ${url}: ${responseText}`);
+          throw new Error(`LLM API error ${response.status} from ${url}: ${responseText}`);
         }
 
         const responseBody = await response.json();
@@ -139,6 +139,6 @@ export class GroqClient implements LLMClient {
       }
     }
 
-    throw new Error(`Groq request failed for all endpoints. Errors: ${failures.join(' | ') || 'unknown error'}`);
+    throw new Error(`LLM request failed for all endpoints. Errors: ${failures.join(' | ') || 'unknown error'}`);
   }
 }

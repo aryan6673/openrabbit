@@ -1,5 +1,5 @@
 export type ReviewMode = 'summary' | 'inline' | 'both';
-export type LLMProvider = 'groq';
+export type LLMProvider = 'groq' | 'openrouter';
 export interface LLMConfig {
   apiKey: string;
   apiUrl: string;
