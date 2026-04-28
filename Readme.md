@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 <p align="center">
   <img src="https://cdn.hackclub.com/019dd5c5-82e4-7a61-b2f2-47d14fa325a2/Untitled%20design%20(9).png" width="128" height="128" alt="OpenRabbit icon">
 </p>
@@ -148,3 +149,6 @@ Yes — `pull_request_target` runs actions in the context of the base branch and
 Licensed under the MIT license.
 #
 ![version](https://img.shields.io/badge/version-v0.2.2-orange)
+=======
+![version](https://img.shields.io/badge/version-v0.2.3-orange)
+>>>>>>> 7107d36fd026a0abe4ca5d30d21651e1c5e7c087
