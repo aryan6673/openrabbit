@@ -179,9 +179,9 @@ Return a JSON object with this exact shape:
 
 {
   "summary": {
-    "verdict": "approve" | "changes-requested" | "question" | "scope-drift",
+    "verdict": "ready to merge" | "looks good to me" | "needs changes" | "question" | "scope-drift",
     "primaryGoal": "One-sentence description of the contributor's main goal",
-    "overview": "High-level review summary in Markdown",
+    "overview": "A detailed, final PR overview written in Markdown",
     "scopeAssessment": "Brief explanation of scope fit or drift",
     "riskAssessment": "Main correctness or security risks",
     "reuseNotes": ["Existing patterns or files worth reusing"],
@@ -202,6 +202,8 @@ Return a JSON object with this exact shape:
 }
 
 If there are no inline comments, return an empty comments array.
+
+Always include the final PR overview as a detailed summary of the change, not just a one-line verdict.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 MARKDOWN FORMATTING
