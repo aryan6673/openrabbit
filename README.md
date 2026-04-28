@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/aryan6673/openrabbit/releases/latest"><b>:copilot: Get Workflow</b></a><br>
+  <b>:copilot:</b> <a href="https://github.com/aryan6673/openrabbit/releases/latest"><b>Get Workflow</b></a><br>
   <sub>Run as a remote GitHub Action  or locally via the CLI</sub>
 </p>
 
