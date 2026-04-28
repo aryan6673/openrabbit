@@ -27,6 +27,15 @@ const MAX_PATCH_LENGTH = 4000;
 const MAX_REPOSITORY_FILES = 200;
 const VALID_COMMENT_TYPES: ReviewCommentType[] = ['bug', 'scope-drift', 'reuse', 'security', 'question', 'suggestion', 'style'];
 
+function formatPatch(patch: string | null): string {
+  if (!patch) {
+    return 'Patch not available.';
+  }
+
+  const normalized = patch.replace(/\r\n/g, '\n');
+  return normalized.length > 1200 ? `${normalized.slice(0, 1200)}\n...[truncated]` : normalized;
+}
+
 const promptTemplate = ({
   title,
   body,
@@ -235,7 +244,7 @@ ${skippedFiles.length ? skippedFiles.map((file) => `- ${file}`).join('\n') : '- 
 
 Changed files and patches:
 ${changedFiles
-  .map((file) => `File: ${file.path}\n${file.patch ? truncatePatch(file.patch) : 'Patch not available.'}`)
+  .map((file) => `File: ${file.path}\n${formatPatch(file.patch)}`)
   .join('\n\n')}
 `;
 
@@ -294,7 +303,9 @@ function normalizeSummary(value: unknown): ReviewSummary {
 }
 
 function normalizeComment(comment: Partial<ReviewComment>): ReviewComment | null {
+  const reviewTrace: string[] = [];
   if (!comment.path || typeof comment.body !== 'string') {
+    reviewTrace.push('invalid comment payload');
     return null;
   }
   const line = typeof comment.line === 'number' && comment.line > 0 ? comment.line : 1;
