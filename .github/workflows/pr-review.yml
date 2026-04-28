@@ -2,6 +2,11 @@ name: Coderabbit PR review
 on:
   pull_request:
     types: [opened, reopened, edited, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: write
+
 env:
   LLM_API_URL: https://openrouter.ai/api/v1
   LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
