@@ -32,7 +32,7 @@ describe('GroqClient', () => {
 
     const client = new GroqClient({
       apiKey: 'test-key',
-      apiUrl: 'https://api.groq.ai/v1',
+      apiUrl: 'https://api.groq.com/openai/v1',
       model: 'openai/gpt-oss-120b',
     });
 
@@ -41,12 +41,12 @@ describe('GroqClient', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
-      'https://api.groq.ai/v1/chat/completions',
+      'https://api.groq.com/openai/v1/chat/completions',
       expect.objectContaining({ method: 'POST' }),
     );
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
-      'https://api.groq.ai/v1/completions',
+      'https://api.groq.com/openai/v1/completions',
       expect.objectContaining({ method: 'POST' }),
     );
     expect(response.review).toBe('Looks good');
@@ -69,7 +69,7 @@ describe('GroqClient', () => {
 
     const client = new GroqClient({
       apiKey: 'test-key',
-      apiUrl: 'https://api.groq.ai',
+      apiUrl: 'https://api.groq.com/openai',
       model: 'openai/gpt-oss-120b',
     });
 
@@ -77,7 +77,7 @@ describe('GroqClient', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledWith(
-      'https://api.groq.ai/v1/chat/completions',
+      'https://api.groq.com/openai/v1/chat/completions',
       expect.objectContaining({ method: 'POST' }),
     );
   });

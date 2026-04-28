@@ -50,6 +50,30 @@ function parseReviewResponse(raw: string): ReviewResponse {
   }
 }
 
+function describeFetchError(error: unknown): string {
+  if (!(error instanceof Error)) {
+    return String(error);
+  }
+
+  const details: string[] = [error.message];
+  const errorWithCause = error as Error & { cause?: unknown; code?: string };
+  if (errorWithCause.code) {
+    details.push(`code=${errorWithCause.code}`);
+  }
+
+  if (errorWithCause.cause && typeof errorWithCause.cause === 'object') {
+    const cause = errorWithCause.cause as { message?: string; code?: string };
+    if (cause.message) {
+      details.push(`cause=${cause.message}`);
+    }
+    if (cause.code) {
+      details.push(`causeCode=${cause.code}`);
+    }
+  }
+
+  return details.join(', ');
+}
+
 export class GroqClient implements LLMClient {
   readonly apiKey: string;
   readonly apiUrl: string;
@@ -111,7 +135,7 @@ export class GroqClient implements LLMClient {
         const text = extractTextFromResponse(responseBody);
         return parseReviewResponse(text);
       } catch (error) {
-        lastError = error instanceof Error ? error : new Error(String(error));
+        lastError = new Error(`request to ${url} failed: ${describeFetchError(error)}`);
       }
     }
 

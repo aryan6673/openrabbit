@@ -11,7 +11,7 @@ inputs:
   llm_api_url:
     description: Base URL for the LLM provider
     required: false
-    default: https://api.groq.ai/v1
+    default: https://api.groq.com/openai/v1
   llm_api_key:
     description: API key for the LLM provider
     required: false
