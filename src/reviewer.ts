@@ -622,9 +622,33 @@ export async function runReview(context: ReviewContext): Promise<void> {
   const mappedComments: Array<{ path: string; position: number; body: string }> = [];
   const unmappedComments: ReviewComment[] = [];
 
+  async function suggestionLooksRelevant(path: string, suggestion: string): Promise<boolean> {
+    try {
+      const { data } = await octokit.rest.repos.getContent({ owner: context.owner, repo: context.repo, path, ref: pullRequest.head.sha });
+      if (!('content' in (data as any)) || typeof (data as any).content !== 'string') return false;
+      const raw = Buffer.from((data as any).content, 'base64').toString('utf8').toLowerCase();
+      const tokens = suggestion.split(/\W+/).filter(Boolean).map((t) => t.toLowerCase()).filter((t) => t.length > 2);
+      for (const t of tokens.slice(0, 40)) {
+        if (raw.includes(t)) return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  }
+
   for (const comment of comments) {
     const file = changedFiles.find((f) => f.path === comment.path);
     const position = mapLineToPosition(file?.patch ?? null, comment.line);
+
+    if (comment.suggestion && position && position > 0) {
+      const looksRelevant = await suggestionLooksRelevant(comment.path, comment.suggestion);
+      if (!looksRelevant) {
+        unmappedComments.push(comment);
+        continue;
+      }
+    }
+
     if (position && position > 0) {
       mappedComments.push({ path: comment.path, position, body: formatCommentBody(comment) });
     } else {
