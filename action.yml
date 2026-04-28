@@ -23,6 +23,10 @@ inputs:
     description: Create summary, inline comments, or both
     required: false
     default: both
+  tone_mode:
+    description: Tone profile for the review output
+    required: false
+    default: balanced
 runs:
   using: composite
   steps:
@@ -49,3 +53,4 @@ runs:
         LLM_API_KEY: ${{ inputs.llm_api_key }}
         LLM_MODEL: ${{ inputs.llm_model }}
         REVIEW_MODE: ${{ inputs.review_mode }}
+        TONE_MODE: ${{ inputs.tone_mode }}

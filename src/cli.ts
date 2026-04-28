@@ -1,5 +1,5 @@
 import { runReview } from './reviewer.js';
-import type { ReviewMode, LLMProvider } from './types.js';
+import type { ReviewMode, LLMProvider, ToneMode } from './types.js';
 
 function getArg(name: string): string | undefined {
   const prefix = `--${name}=`;
@@ -21,6 +21,7 @@ async function main(): Promise<void> {
   const llmApiKey = getValue('llm-api-key', 'LLM_API_KEY');
   const llmModel = getValue('llm-model', 'LLM_MODEL', 'openrouter/free');
   const reviewMode = (getValue('review-mode', 'REVIEW_MODE', 'both') as ReviewMode);
+  const toneMode = (getValue('tone-mode', 'TONE_MODE', 'balanced') as ToneMode);
 
   if (!owner || !repo || !pullNumber || !githubToken || !llmApiKey) {
     console.error('Missing required arguments. Use --owner, --repo, --pull-number, --github-token, --llm-api-key.');
@@ -37,6 +38,7 @@ async function main(): Promise<void> {
     llmApiKey,
     llmModel,
     reviewMode,
+    toneMode,
   });
 }
 

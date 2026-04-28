@@ -1,6 +1,8 @@
 import { fetch } from 'undici';
 import type { LLMClient } from './index.js';
-import type { LLMConfig, ReviewResponse } from '../types.js';
+import type { LLMConfig, ReviewCommentType, ReviewResponse } from '../types.js';
+
+const VALID_COMMENT_TYPES: ReviewCommentType[] = ['bug', 'scope-drift', 'reuse', 'security', 'question', 'suggestion', 'style'];
 
 function extractTextFromResponse(body: any): string {
   if (!body) {
@@ -30,22 +32,94 @@ function extractTextFromResponse(body: any): string {
   return JSON.stringify(body);
 }
 
+function normalizeReviewResponse(value: unknown): ReviewResponse {
+  if (!value || typeof value !== 'object') {
+    return {
+      summary: {
+        overview: '',
+        reuseNotes: [],
+        actionItems: [],
+      },
+      comments: [],
+      separatePrSuggestions: [],
+    };
+  }
+
+  const parsed = value as Record<string, unknown>;
+  const summarySource = parsed.summary ?? parsed.review ?? '';
+  const summary = typeof summarySource === 'string'
+    ? {
+        overview: summarySource.trim(),
+        reuseNotes: [],
+        actionItems: [],
+      }
+    : {
+        verdict: typeof (summarySource as Record<string, unknown>)?.verdict === 'string'
+          ? ((summarySource as Record<string, unknown>).verdict as string).trim()
+          : undefined,
+        primaryGoal: typeof (summarySource as Record<string, unknown>)?.primaryGoal === 'string'
+          ? ((summarySource as Record<string, unknown>).primaryGoal as string).trim()
+          : undefined,
+        overview: typeof (summarySource as Record<string, unknown>)?.overview === 'string'
+          ? ((summarySource as Record<string, unknown>).overview as string).trim()
+          : undefined,
+        scopeAssessment: typeof (summarySource as Record<string, unknown>)?.scopeAssessment === 'string'
+          ? ((summarySource as Record<string, unknown>).scopeAssessment as string).trim()
+          : undefined,
+        riskAssessment: typeof (summarySource as Record<string, unknown>)?.riskAssessment === 'string'
+          ? ((summarySource as Record<string, unknown>).riskAssessment as string).trim()
+          : undefined,
+        reuseNotes: Array.isArray((summarySource as Record<string, unknown>)?.reuseNotes)
+          ? ((summarySource as Record<string, unknown>).reuseNotes as unknown[]).filter((item): item is string => typeof item === 'string').map((item) => item.trim()).filter(Boolean)
+          : [],
+        actionItems: Array.isArray((summarySource as Record<string, unknown>)?.actionItems)
+          ? ((summarySource as Record<string, unknown>).actionItems as unknown[]).filter((item): item is string => typeof item === 'string').map((item) => item.trim()).filter(Boolean)
+          : [],
+      };
+
+  const comments = Array.isArray(parsed.comments)
+    ? parsed.comments
+      .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object')
+      .map((item) => ({
+        path: typeof item.path === 'string' ? item.path : '',
+        line: typeof item.line === 'number' && item.line > 0 ? item.line : 1,
+        body: typeof item.body === 'string' ? item.body.trim() : '',
+        type: typeof item.type === 'string' && VALID_COMMENT_TYPES.includes(item.type as ReviewCommentType)
+          ? item.type as ReviewCommentType
+          : undefined,
+        suggestion: typeof item.suggestion === 'string' ? item.suggestion.trim() : undefined,
+      }))
+      .filter((item) => item.path && item.body)
+    : [];
+
+  const separatePrSuggestions = Array.isArray(parsed.separate_pr_suggestions)
+    ? parsed.separate_pr_suggestions.filter((item): item is string => typeof item === 'string').map((item) => item.trim()).filter(Boolean)
+    : [];
+
+  return { summary, comments, separatePrSuggestions };
+}
+
 function parseReviewResponse(raw: string): ReviewResponse {
   const text = raw.trim();
   try {
-    return JSON.parse(text);
+    return normalizeReviewResponse(JSON.parse(text));
   } catch {
     const first = text.indexOf('{');
     const last = text.lastIndexOf('}');
     if (first >= 0 && last > first) {
       try {
-        return JSON.parse(text.slice(first, last + 1));
+        return normalizeReviewResponse(JSON.parse(text.slice(first, last + 1)));
       } catch {
       }
     }
     return {
-      review: text,
+      summary: {
+        overview: text,
+        reuseNotes: [],
+        actionItems: [],
+      },
       comments: [],
+      separatePrSuggestions: [],
     };
   }
 }

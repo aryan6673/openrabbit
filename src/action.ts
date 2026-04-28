@@ -20,6 +20,7 @@ async function run(): Promise<void> {
   const llmApiKey = getInputValue('llm_api_key', process.env.LLM_API_KEY ?? '', 'LLM_API_KEY');
   const llmModel = getInputValue('llm_model', process.env.LLM_MODEL ?? 'openrouter/free', 'LLM_MODEL') ?? 'openrouter/free';
   const reviewMode = (getInputValue('review_mode', process.env.REVIEW_MODE ?? 'both', 'REVIEW_MODE') ?? 'both') as import('./types.js').ReviewMode;
+  const toneMode = (getInputValue('tone_mode', process.env.TONE_MODE ?? 'balanced', 'TONE_MODE') ?? 'balanced') as import('./types.js').ToneMode;
   const repository = github.context.repo;
   const pullRequestNumber = github.context.payload.pull_request?.number;
 
@@ -43,6 +44,7 @@ async function run(): Promise<void> {
     llmApiKey,
     llmModel,
     reviewMode: reviewMode as import('./types.js').ReviewMode,
+    toneMode,
   });
 }
 

@@ -42,7 +42,7 @@ describe('GroqClient', () => {
       'https://api.groq.com/openai/v1/chat/completions',
       expect.objectContaining({ method: 'POST' }),
     );
-    expect(response.review).toBe('Looks good');
+    expect(response.summary.overview).toBe('Looks good');
     expect(response.comments).toEqual([]);
   });
 
