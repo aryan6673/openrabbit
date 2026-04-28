@@ -101,26 +101,16 @@ function normalizeReviewResponse(value: unknown): ReviewResponse {
 
 function parseReviewResponse(raw: string): ReviewResponse {
   const text = raw.trim();
+  const first = text.indexOf('{');
+  const last = text.lastIndexOf('}');
+  if (first === -1 || last <= first) {
+    throw new Error('LLM output was not valid JSON. Expected a JSON object.');
+  }
+
   try {
-    return normalizeReviewResponse(JSON.parse(text));
-  } catch {
-    const first = text.indexOf('{');
-    const last = text.lastIndexOf('}');
-    if (first >= 0 && last > first) {
-      try {
-        return normalizeReviewResponse(JSON.parse(text.slice(first, last + 1)));
-      } catch {
-      }
-    }
-    return {
-      summary: {
-        overview: text,
-        reuseNotes: [],
-        actionItems: [],
-      },
-      comments: [],
-      separatePrSuggestions: [],
-    };
+    return normalizeReviewResponse(JSON.parse(text.slice(first, last + 1)));
+  } catch (error) {
+    throw new Error(`LLM output was not valid JSON. Parse error: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -171,6 +161,10 @@ export class GroqClient implements LLMClient {
     return {
       model: this.model,
       messages: [
+        {
+          role: 'system',
+          content: 'You must return only valid JSON that matches the requested review schema. Do not include any additional prose, headings, or explanation outside the JSON object.',
+        },
         {
           role: 'user',
           content: prompt,
