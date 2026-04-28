@@ -666,7 +666,7 @@ function formatCommentBody(comment: ReviewComment): string {
 }
 
 export async function runReview(context: ReviewContext): Promise<void> {
-  const octokit = new Octokit({ auth: context.githubToken });
+  const octokit = new Octokit({ auth: context.botToken ?? context.githubToken });
   const { data: pullRequest } = await octokit.rest.pulls.get({
     owner: context.owner,
     repo: context.repo,

@@ -4,6 +4,9 @@ inputs:
   github_token:
     description: GitHub token for PR review actions
     required: false
+  bot_token:
+    description: Optional GitHub personal access token or app installation token to post comments as a bot account
+    required: false
   llm_provider:
     description: LLM provider key
     required: false
@@ -42,12 +45,13 @@ runs:
       run: npm run build
       shell: bash
       working-directory: ${{ github.action_path }}
-    - name: Run Coderabbit reviewer
+    - name: OpenRabbit
       run: node dist/action.js
       shell: bash
       working-directory: ${{ github.action_path }}
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
+        BOT_TOKEN: ${{ inputs.bot_token }}
         LLM_PROVIDER: ${{ inputs.llm_provider }}
         LLM_API_URL: ${{ inputs.llm_api_url }}
         LLM_API_KEY: ${{ inputs.llm_api_key }}

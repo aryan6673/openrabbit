@@ -34,6 +34,7 @@ export interface ReviewContext {
   repo: string;
   pullNumber: number;
   githubToken: string;
+  botToken?: string;
   llmProvider: LLMProvider;
   llmApiUrl: string;
   llmApiKey: string;

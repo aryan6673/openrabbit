@@ -15,6 +15,7 @@ function getInputValue(name: string, fallback = '', envName?: string): string {
 
 async function run(): Promise<void> {
   const githubToken = getInputValue('github_token', process.env.GITHUB_TOKEN ?? '', 'GITHUB_TOKEN');
+  const botToken = getInputValue('bot_token', process.env.BOT_TOKEN ?? '', 'BOT_TOKEN');
   const llmProvider = (getInputValue('llm_provider', process.env.LLM_PROVIDER ?? 'openrouter', 'LLM_PROVIDER') ?? 'openrouter') as import('./types.js').LLMProvider;
   const llmApiUrl = getInputValue('llm_api_url', process.env.LLM_API_URL ?? 'https://openrouter.ai/api/v1', 'LLM_API_URL') ?? 'https://openrouter.ai/api/v1';
   const llmApiKey = getInputValue('llm_api_key', process.env.LLM_API_KEY ?? '', 'LLM_API_KEY');
@@ -45,6 +46,7 @@ async function run(): Promise<void> {
     llmModel,
     reviewMode: reviewMode as import('./types.js').ReviewMode,
     toneMode,
+    botToken,
   });
 }
 

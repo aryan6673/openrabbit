@@ -16,6 +16,7 @@ async function main(): Promise<void> {
   const repo = getValue('repo', 'GITHUB_REPO');
   const pullNumber = Number(getValue('pull-number', 'GITHUB_PULL_NUMBER'));
   const githubToken = getValue('github-token', 'GITHUB_TOKEN');
+  const botToken = getValue('bot-token', 'BOT_TOKEN');
   const llmProvider = (getValue('llm-provider', 'LLM_PROVIDER', 'openrouter') as LLMProvider);
   const llmApiUrl = getValue('llm-api-url', 'LLM_API_URL', 'https://openrouter.ai/api/v1');
   const llmApiKey = getValue('llm-api-key', 'LLM_API_KEY');
@@ -33,6 +34,7 @@ async function main(): Promise<void> {
     repo,
     pullNumber,
     githubToken,
+    botToken,
     llmProvider,
     llmApiUrl,
     llmApiKey,
