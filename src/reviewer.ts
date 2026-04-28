@@ -15,6 +15,46 @@ interface ChangedFile {
   path: string;
   patch: string | null;
 }
+function mapLineToPosition(patch: string | null, targetLine: number): number | null {
+  if (!patch) return null;
+  let position = 0;
+  const lines = patch.split(/\r?\n/);
+  let currentNewLine = 0;
+
+  for (const rawLine of lines) {
+    if (rawLine.startsWith('@@')) {
+      const match = /@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/.exec(rawLine);
+      if (match) {
+        currentNewLine = Number(match[1]);
+      } else {
+        currentNewLine = 0;
+      }
+      continue;
+    }
+
+    if (rawLine.startsWith('\\ No newline')) {
+      continue;
+    }
+
+    const prefix = rawLine[0];
+    if (prefix !== ' ' && prefix !== '+' && prefix !== '-') {
+      continue;
+    }
+
+    // Count this line as a position in the diff
+    position++;
+
+    if (prefix === ' ' || prefix === '+') {
+      if (currentNewLine === targetLine) {
+        return position;
+      }
+      currentNewLine++;
+    } else if (prefix === '-') {
+      // deleted line in old file: advances diff position but not new-file line number
+    }
+  }
+  return null;
+}
 
 interface LinkedIssue {
   number: number;
@@ -571,18 +611,39 @@ export async function runReview(context: ReviewContext): Promise<void> {
     ? []
     : response.comments.filter((comment) => commentablePaths.has(comment.path)).slice(0, 5);
 
-  await octokit.rest.pulls.createReview({
+  const mappedComments: Array<{ path: string; position: number; body: string }> = [];
+  const unmappedComments: ReviewComment[] = [];
+
+  for (const comment of comments) {
+    const file = changedFiles.find((f) => f.path === comment.path);
+    const position = mapLineToPosition(file?.patch ?? null, comment.line);
+    if (position && position > 0) {
+      mappedComments.push({ path: comment.path, position, body: formatCommentBody(comment) });
+    } else {
+      unmappedComments.push(comment);
+    }
+  }
+
+  let finalBody = reviewBody;
+  if (unmappedComments.length) {
+    finalBody += '\n\n### Inline comments (could not be placed directly)\n';
+    finalBody += unmappedComments
+      .map((c) => `- **${c.path}#L${c.line}**: ${c.body}`)
+      .join('\n\n');
+  }
+
+  const createParams: Record<string, unknown> = {
     owner: context.owner,
     repo: context.repo,
     pull_number: context.pullNumber,
     commit_id: pullRequest.head.sha,
-    body: reviewBody,
+    body: finalBody,
     event: 'COMMENT',
-    comments: comments.map((comment) => ({
-      path: comment.path,
-      line: comment.line,
-      body: formatCommentBody(comment),
-      side: 'RIGHT',
-    })),
-  });
+  };
+
+  if (mappedComments.length) {
+    createParams.comments = mappedComments.map((c) => ({ path: c.path, position: c.position, body: c.body }));
+  }
+
+  await octokit.rest.pulls.createReview(createParams as any);
 }
