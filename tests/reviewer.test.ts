@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildReviewPrompt, parseReviewResponse } from '../src/reviewer.ts';
+import { buildReviewPrompt, parseReviewResponse } from '../src/reviewer.js';
 
 describe('reviewer prompt', () => {
   it('generates a prompt with title and patch snippets', () => {

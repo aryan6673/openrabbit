@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { GroqClient } from '../src/llm/groq.ts';
+import { GroqClient } from '../src/llm/groq.js';
 
 const { fetchMock } = vi.hoisted(() => ({
   fetchMock: vi.fn(),

@@ -3,7 +3,7 @@ name: Auto Semantic Release
 on:
   push:
     branches:
-      - master
+      - main
 
 permissions:
   contents: write
@@ -15,7 +15,18 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+
+      - name: Locate README file
+        run: |
+          if [ -f README.md ]; then
+            echo "README_FILE=README.md" >> $GITHUB_ENV
+          elif [ -f Readme.md ]; then
+            echo "README_FILE=Readme.md" >> $GITHUB_ENV
+          else
+            echo "README_FILE=README.md" >> $GITHUB_ENV
+            touch README.md
+          fi
 
       - name: Set up Git
         run: |
@@ -25,10 +36,9 @@ jobs:
       - name: Get latest version from README
         id: get_version
         run: |
-          README_FILE="README.md"
           # Extract version from badge, e.g., version-v0.0.1
-          if grep -q "version-v" $README_FILE; then
-            CURRENT_VERSION=$(grep -o "version-v[0-9]*\.[0-9]*\.[0-9]*" $README_FILE | head -1 | cut -d'-' -f2)
+          if grep -q "version-v" "$README_FILE"; then
+            CURRENT_VERSION=$(grep -o "version-v[0-9]*\.[0-9]*\.[0-9]*" "$README_FILE" | head -1 | cut -d'-' -f2)
           else
             CURRENT_VERSION="v0.0.0"
           fi
@@ -67,18 +77,17 @@ jobs:
       - name: Update version badge in README
         run: |
           BADGE_URL="https://img.shields.io/badge/version-${{ env.NEW_VERSION }}-orange"
-          README_FILE="README.md"
-          if grep -q "version-${{ env.NEW_VERSION }}" $README_FILE; then
+          if grep -q "version-${{ env.NEW_VERSION }}" "$README_FILE"; then
             echo "Badge is already up-to-date."
           else
-            if grep -q "version-" $README_FILE; then
-              sed -i "s|!\[version\].*|![version]($BADGE_URL)|" $README_FILE
+            if grep -q "version-" "$README_FILE"; then
+              sed -i "s|!\[version\].*|![version]($BADGE_URL)|" "$README_FILE"
             else
-              sed -i "1i![version]($BADGE_URL)" $README_FILE
+              sed -i "1i![version]($BADGE_URL)" "$README_FILE"
             fi
-            git add $README_FILE
+            git add "$README_FILE"
             git commit -m "Update version badge to ${{ env.NEW_VERSION }}"
-            git push origin master
+            git push origin main
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
