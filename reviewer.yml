@@ -1,4 +1,4 @@
-name: OpenRabbit (remote) PR review
+name: OpenRabbit
 on:
   pull_request_target:
     types: [opened, reopened, edited, synchronize]
@@ -11,7 +11,7 @@ jobs:
   review:
     runs-on: ubuntu-latest
     steps:
-      - name: Run OpenRabbit reviewer (remote action)
+      - name: OpenRabbit
         uses: aryan6673/openrabbit@main
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

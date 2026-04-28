@@ -20,7 +20,7 @@ jobs:
           node-version: '20'
       - run: npm install
       - run: npm run build
-      - name: Run OpenRabbit reviewer
+      - name: OpenRabbit
         run: node dist/action.js
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
