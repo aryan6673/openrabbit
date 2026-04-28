@@ -4,7 +4,7 @@ on:
     types: [opened, reopened, edited, synchronize]
 env:
   LLM_API_URL: https://openrouter.ai/api/v1
-  LLM_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+  LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
 jobs:
   review:
     runs-on: ubuntu-latest
@@ -20,7 +20,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LLM_PROVIDER: openrouter
-          LLM_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
           LLM_API_URL: https://openrouter.ai/api/v1
           LLM_MODEL: openrouter/free
           REVIEW_MODE: both
