@@ -16,10 +16,10 @@ async function main(): Promise<void> {
   const repo = getValue('repo', 'GITHUB_REPO');
   const pullNumber = Number(getValue('pull-number', 'GITHUB_PULL_NUMBER'));
   const githubToken = getValue('github-token', 'GITHUB_TOKEN');
-  const llmProvider = (getValue('llm-provider', 'LLM_PROVIDER', 'groq') as LLMProvider);
-  const llmApiUrl = getValue('llm-api-url', 'LLM_API_URL', 'https://api.groq.com/openai/v1');
+  const llmProvider = (getValue('llm-provider', 'LLM_PROVIDER', 'openrouter') as LLMProvider);
+  const llmApiUrl = getValue('llm-api-url', 'LLM_API_URL', 'https://openrouter.ai/api/v1');
   const llmApiKey = getValue('llm-api-key', 'LLM_API_KEY');
-  const llmModel = getValue('llm-model', 'LLM_MODEL', 'openai/gpt-oss-120b');
+  const llmModel = getValue('llm-model', 'LLM_MODEL', 'openrouter/free');
   const reviewMode = (getValue('review-mode', 'REVIEW_MODE', 'both') as ReviewMode);
 
   if (!owner || !repo || !pullNumber || !githubToken || !llmApiKey) {

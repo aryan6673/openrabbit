@@ -91,7 +91,7 @@ describe('GroqClient', () => {
     });
 
     await expect(client.complete('Review this')).rejects.toThrow(
-      'Groq request failed for all endpoints. Errors: request to https://api.groq.com/openai/v1/chat/completions failed: fetch failed | request to https://api.groq.com/openai/chat/completions failed: Groq API error 404 from https://api.groq.com/openai/chat/completions: {"error":"missing"}',
+      'LLM request failed for all endpoints. Errors: request to https://api.groq.com/openai/v1/chat/completions failed: fetch failed | request to https://api.groq.com/openai/chat/completions failed: LLM API error 404 from https://api.groq.com/openai/chat/completions: {"error":"missing"}',
     );
   });
 });
