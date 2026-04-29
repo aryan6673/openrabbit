@@ -53,8 +53,6 @@ runs:
       shell: bash
       working-directory: ${{ github.action_path }}
       env:
-        GITHUB_TOKEN: ${{ inputs.github_token }}
-        BOT_TOKEN: ${{ inputs.bot_token }}
         LLM_PROVIDER: ${{ inputs.llm_provider }}
         LLM_API_URL: ${{ inputs.llm_api_url }}
         LLM_API_KEY: ${{ inputs.llm_api_key }}
