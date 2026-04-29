@@ -33,7 +33,7 @@ export interface ReviewContext {
   owner: string;
   repo: string;
   pullNumber: number;
-  githubToken: string;
+  githubToken?: string;
   botToken?: string;
   llmProvider: LLMProvider;
   llmApiUrl: string;

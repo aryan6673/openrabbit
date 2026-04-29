@@ -39,14 +39,14 @@ async function run(): Promise<void> {
     owner: repository.owner,
     repo: repository.repo,
     pullNumber: pullRequestNumber,
-    githubToken,
+    githubToken: githubToken || undefined,
     llmProvider: llmProvider as import('./types.js').LLMProvider,
     llmApiUrl,
     llmApiKey,
     llmModel,
     reviewMode: reviewMode as import('./types.js').ReviewMode,
     toneMode,
-    botToken,
+    botToken: botToken || undefined,
   });
 }
 

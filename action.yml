@@ -3,13 +3,20 @@ description: GitHub Action that generates PR review summaries and inline comment
 branding:
   icon: chevron-left
   color: orange
+permissions:
+  contents: read
+  pull-requests: write
+  issues: read
 inputs:
   github_token:
-    description: GitHub token for PR review actions
+    description: GitHub token for PR review actions. Optional — the runner's GITHUB_TOKEN will be used if omitted. Pass ${{ secrets.GITHUB_TOKEN }} to be explicit.
     required: false
   bot_token:
-    description: Optional GitHub personal access token or app installation token to post comments as a bot account
+    description: Optional bot token for alternate GitHub authentication (e.g., app or PAT). Provide as an input or use the `BOT_TOKEN` env/secret.
     required: false
+  # No token inputs: the action runs with the runner's GITHUB_TOKEN by default.
+  # Token override inputs are intentionally omitted to avoid accidental token overrides
+  # when users install the action from the Marketplace.
   llm_provider:
     description: LLM provider key
     required: false
@@ -19,8 +26,8 @@ inputs:
     required: false
     default: https://openrouter.ai/api/v1
   llm_api_key:
-    description: API key for the LLM provider
-    required: false
+    description: API key for the LLM provider. Provide this as a repository secret (for example: ${{ secrets.LLM_API_KEY }}).
+    required: true
   llm_model:
     description: Model name for the configured LLM provider
     required: false
@@ -53,6 +60,8 @@ runs:
       shell: bash
       working-directory: ${{ github.action_path }}
       env:
+        GITHUB_TOKEN: ${{ inputs.github_token || secrets.GITHUB_TOKEN }}
+        BOT_TOKEN: ${{ inputs.bot_token || secrets.BOT_TOKEN }}
         LLM_PROVIDER: ${{ inputs.llm_provider }}
         LLM_API_URL: ${{ inputs.llm_api_url }}
         LLM_API_KEY: ${{ inputs.llm_api_key }}
