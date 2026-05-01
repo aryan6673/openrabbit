@@ -146,5 +146,5 @@ Yes — `pull_request_target` runs actions in the context of the base branch and
 
 Licensed under the MIT license.
 #
-![version](https://img.shields.io/badge/version-v0.3.9-orange)
+![version](https://img.shields.io/badge/version-v0.4.1-orange)
 
