@@ -114,5 +114,5 @@ OpenRabbit **destroys this risk** by shifting the power back to the developer. B
 
 Licensed under the MIT license.
 #
-![version](https://img.shields.io/badge/version-v0.4.8-orange)
+![version](https://img.shields.io/badge/version-v0.4.9-orange)
 
