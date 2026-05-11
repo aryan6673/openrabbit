@@ -119,7 +119,7 @@ If you want better performance and fewer interruptions, you should use your own 
 4. Generate an API key  
 5. Copy the key
 
-Then add it to your project (usually in a `.env` file):
+Then add it to your project :
 
 ```bash
 LLM_API_KEY=your_api_key_here
