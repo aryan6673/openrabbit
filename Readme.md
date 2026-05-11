@@ -159,5 +159,5 @@ Instead of putting your API key in a `.env` file, you should store it securely i
 
 Licensed under the MIT license.
 #
-![version](https://img.shields.io/badge/version-v0.5.2-orange)
+![version](https://img.shields.io/badge/version-v0.5.3-orange)
 
