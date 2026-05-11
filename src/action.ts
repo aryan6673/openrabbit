@@ -13,6 +13,18 @@ function getInputValue(name: string, fallback = '', envName?: string): string {
   return fallback;
 }
 
+function parseBoolean(value: string): boolean {
+  return ['1', 'true', 'yes', 'on'].includes(value.trim().toLowerCase());
+}
+
+function normalizeReviewLens(value: string): import('./types.js').ReviewLens {
+  const normalized = value.trim().toLowerCase();
+  if (['default', 'security', 'socratic', 'performance', 'scope-guard'].includes(normalized)) {
+    return normalized as import('./types.js').ReviewLens;
+  }
+  return 'default';
+}
+
 async function run(): Promise<void> {
   const githubToken = getInputValue('github_token', process.env.GITHUB_TOKEN ?? '', 'GITHUB_TOKEN');
   const llmProvider = (getInputValue('llm_provider', process.env.LLM_PROVIDER ?? 'openrouter', 'LLM_PROVIDER') ?? 'openrouter') as import('./types.js').LLMProvider;
@@ -21,6 +33,8 @@ async function run(): Promise<void> {
   const llmModel = getInputValue('llm_model', process.env.LLM_MODEL ?? 'openrouter/free', 'LLM_MODEL') ?? 'openrouter/free';
   const reviewMode = (getInputValue('review_mode', process.env.REVIEW_MODE ?? 'both', 'REVIEW_MODE') ?? 'both') as import('./types.js').ReviewMode;
   const toneMode = (getInputValue('tone_mode', process.env.TONE_MODE ?? 'balanced', 'TONE_MODE') ?? 'balanced') as import('./types.js').ToneMode;
+  const reviewLens = normalizeReviewLens(getInputValue('review_lens', process.env.REVIEW_LENS ?? 'default', 'REVIEW_LENS') ?? 'default');
+  const debiasedMode = parseBoolean(getInputValue('debiased_mode', process.env.DEBIASED_MODE ?? 'false', 'DEBIASED_MODE') ?? 'false');
   const repository = github.context.repo;
   const pullRequestNumber = github.context.payload.pull_request?.number;
 
@@ -45,6 +59,8 @@ async function run(): Promise<void> {
     llmModel,
     reviewMode: reviewMode as import('./types.js').ReviewMode,
     toneMode,
+    reviewLens,
+    debiasedMode,
   });
 }
 
