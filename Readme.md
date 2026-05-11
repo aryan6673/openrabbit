@@ -70,7 +70,7 @@ jobs:
 
 **OpenRabbit is a stand for [Open Source Ethics](https://www.openresourcelibrary.com/concepts/ethics/).**
 
-Centralized companies like [CodeRabbit](https://www.coderabbit.ai/) have become "blast-radius multipliers". In late 2025, a critical security vulnerability in their platform exposed [over 1 million repositories](https://kudelskisecurity.com/research/how-we-exploited-coderabbit-from-a-simple-pr-to-rce-and-write-access-on-1m-repositories) to potential [Remote Code Execution (RCE)](https://www.cloudflare.com/learning/security/what-is-remote-code-execution/) because users were forced to grant broad write access to a third-party cloud.
+Centralized companies like **[CodeRabbit](https://www.coderabbit.ai/)** have become "blast-radius multipliers". In late 2025, a critical security vulnerability in their platform exposed [over 1 million repositories](https://kudelskisecurity.com/research/how-we-exploited-coderabbit-from-a-simple-pr-to-rce-and-write-access-on-1m-repositories) to potential [Remote Code Execution (RCE)](https://www.cloudflare.com/learning/security/what-is-remote-code-execution/) because users were forced to grant broad write access to a third-party cloud.
 
 OpenRabbit **destroys this risk** by shifting the power back to the developer. By running client-side in your own CI/CD, you maintain **total data sovereignty**. We believe you shouldn't have to trade your project's security for AI productivity.
 
