@@ -99,6 +99,60 @@ OpenRabbit **destroys this risk** by shifting the power back to the developer. B
 
 - **Stops "Vibe Coding" (DRIFT Detection)**  
   It flags when you change stuff that has nothing to do with the PR. Like random refactors or cleanup. It tells you to move that into a separate PR so things stay clean and easy to review.
+
+---
+
+## Getting a Free API Key
+
+By default, this project uses the **OpenRouter free model pool**.  
+Yeah, it’s not perfect — the main issue is rate limits. To deal with that, it automatically rotates between different free models on OpenRouter so you don’t keep hitting the same limit again and again. It works, but it’s not super reliable or consistent.
+
+If you want better performance and fewer interruptions, you should use your own API key.
+
+---
+
+### Option 1: Get a Free API Key from OpenRouter
+
+1. Go to https://openrouter.ai  
+2. Sign up / log in  
+3. Open your dashboard  
+4. Generate an API key  
+5. Copy the key
+
+Then add it to your project (usually in a `.env` file):
+
+```bash
+LLM_API_KEY=your_api_key_here
+```
+## Adding Your API Key to GitHub Actions (Recommended)
+
+Instead of putting your API key in a `.env` file, you should store it securely in **GitHub Actions secrets**. This keeps your key safe and prevents it from being exposed in your code.
+
+---
+
+### Steps to Add Your API Key
+
+1. Go to your repository on GitHub  
+2. Click on **Settings**  
+3. In the left sidebar, go to **Secrets and variables → Actions**  
+4. Click **New repository secret**  
+5. Add your key:
+   - **Name**: `LLM_API_KEY`  
+   - **Value**: paste your API key  
+6. Click **Add secret**
+
+---
+
+### Using the API Key in GitHub Actions
+
+In your workflow file (inside `.github/workflows/`), reference the secret like this:
+
+```yaml
+env:
+  LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+  ```
+
+
 ## Review Modes
 
 - **summary:** single summary review comment (no inline comments).  
