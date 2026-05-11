@@ -168,5 +168,5 @@ env:
 
 Licensed under the MIT license.
 #
-![version](https://img.shields.io/badge/version-v0.5.0-orange)
+![version](https://img.shields.io/badge/version-v0.5.1-orange)
 
