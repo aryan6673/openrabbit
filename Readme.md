@@ -143,15 +143,6 @@ Instead of putting your API key in a `.env` file, you should store it securely i
 
 ---
 
-### Using the API Key in GitHub Actions
-
-In your workflow file (inside `.github/workflows/`), reference the secret like this:
-
-```yaml
-env:
-  LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
-  ```
-
 
 ## Review Modes
 
