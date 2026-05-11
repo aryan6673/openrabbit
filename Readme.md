@@ -66,7 +66,7 @@ jobs:
 
 ---
 
-## 🔥 The Open Source Fight
+## The Open Source Fight
 
 **OpenRabbit is a stand for [Open Source Ethics](https://www.openresourcelibrary.com/concepts/ethics/).**
 
