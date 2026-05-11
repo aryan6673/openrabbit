@@ -1,5 +1,5 @@
 import { runReview } from './reviewer.js';
-import type { ReviewMode, LLMProvider, ToneMode } from './types.js';
+import type { ReviewMode, LLMProvider, ToneMode, ReviewLens } from './types.js';
 
 function getArg(name: string): string | undefined {
   const prefix = `--${name}=`;
@@ -9,6 +9,18 @@ function getArg(name: string): string | undefined {
 
 function getValue(name: string, envName: string, fallback?: string): string {
   return getArg(name) ?? process.env[envName] ?? fallback ?? '';
+}
+
+function parseBoolean(value: string): boolean {
+  return ['1', 'true', 'yes', 'on'].includes(value.trim().toLowerCase());
+}
+
+function normalizeReviewLens(value: string): ReviewLens {
+  const normalized = value.trim().toLowerCase();
+  if (['default', 'security', 'socratic', 'performance', 'scope-guard'].includes(normalized)) {
+    return normalized as ReviewLens;
+  }
+  return 'default';
 }
 
 async function main(): Promise<void> {
@@ -22,6 +34,8 @@ async function main(): Promise<void> {
   const llmModel = getValue('llm-model', 'LLM_MODEL', 'openrouter/free');
   const reviewMode = (getValue('review-mode', 'REVIEW_MODE', 'both') as ReviewMode);
   const toneMode = (getValue('tone-mode', 'TONE_MODE', 'balanced') as ToneMode);
+  const reviewLens = normalizeReviewLens(getValue('review-lens', 'REVIEW_LENS', 'default'));
+  const debiasedMode = parseBoolean(getValue('debiased-mode', 'DEBIASED_MODE', 'false'));
 
   if (!owner || !repo || !pullNumber || !githubToken || !llmApiKey) {
     console.error('Missing required arguments. Use --owner, --repo, --pull-number, --github-token, --llm-api-key.');
@@ -39,6 +53,8 @@ async function main(): Promise<void> {
     llmModel,
     reviewMode,
     toneMode,
+    reviewLens,
+    debiasedMode,
   });
 }
 

@@ -1,6 +1,7 @@
 export type ReviewMode = 'summary' | 'inline' | 'both';
 export type LLMProvider = 'groq' | 'openrouter';
 export type ToneMode = 'balanced' | 'direct' | 'supportive';
+export type ReviewLens = 'default' | 'security' | 'socratic' | 'performance' | 'scope-guard';
 export interface LLMConfig {
   apiKey: string;
   apiUrl: string;
@@ -40,4 +41,6 @@ export interface ReviewContext {
   llmModel: string;
   reviewMode: ReviewMode;
   toneMode: ToneMode;
+  reviewLens: ReviewLens;
+  debiasedMode: boolean;
 }

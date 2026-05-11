@@ -27,6 +27,14 @@ inputs:
     description: Tone profile for the review output
     required: false
     default: balanced
+  review_lens:
+    description: Focused review lens (default, security, socratic, performance, scope-guard)
+    required: false
+    default: default
+  debiased_mode:
+    description: Redact PR metadata for the initial pass
+    required: false
+    default: "false"
 runs:
   using: composite
   steps:
@@ -54,3 +62,5 @@ runs:
         LLM_MODEL: ${{ inputs.llm_model }}
         REVIEW_MODE: ${{ inputs.review_mode }}
         TONE_MODE: ${{ inputs.tone_mode }}
+        REVIEW_LENS: ${{ inputs.review_lens }}
+        DEBIASED_MODE: ${{ inputs.debiased_mode }}

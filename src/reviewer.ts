@@ -9,6 +9,7 @@ import type {
   ReviewResponse,
   ReviewSummary,
   ToneMode,
+  ReviewLens,
 } from './types.js';
 
 interface ChangedFile {
@@ -135,6 +136,25 @@ interface LinkedIssue {
 const MAX_PATCH_LENGTH = 4000;
 const MAX_REPOSITORY_FILES = 200;
 const VALID_COMMENT_TYPES: ReviewCommentType[] = ['bug', 'scope-drift', 'reuse', 'security', 'question', 'suggestion', 'style'];
+const LARGE_DIFF_LINE_THRESHOLD = 1000;
+const MAX_GROUP_PATCH_LINES = 500;
+const MAX_PASS_SUMMARY_CHARS = 4000;
+const REVIEW_LENS_VALUES: ReviewLens[] = ['default', 'security', 'socratic', 'performance', 'scope-guard'];
+const REVIEW_LENS_INSTRUCTIONS: Record<ReviewLens, string> = {
+  default: '',
+  security: 'Ignore the PR title and description for the first assessment. Focus strictly on the code diff. Look for OWASP Top 10 vulnerabilities, including SQL injection, XSS, and broken authentication. Specifically, watch for security theater—changes that claim to improve security in the metadata but actually remove validation logic. If the code removes a check, verify that a stronger or equal check has been added elsewhere.',
+  socratic: 'Act as a technical mentor. Instead of providing the code fix immediately, ask probing questions that lead the contributor to identify the bug or inefficiency themselves. Use a supportive tone. Structure feedback around why a specific pattern is risky or inconsistent, encouraging the developer to reflect. Only provide a suggestion block if the fix is mechanical or stylistic.',
+  performance: 'Analyze the diff for potential race conditions, memory leaks, and O(n^2) complexity issues. Check if the code bypasses existing caching layers or duplicates initialization patterns that should be reused. Flag any new dependencies that provide functionality already available in the codebase. Focus on whether this change will hold up under a 10x increase in traffic.',
+  'scope-guard': 'Identify the one primary goal of this PR. Flag every file that is DRIFT—reformatted or refactored without necessity for the core feature. If a critical infrastructure file was modified, demand a technical justification even if the change looks benign. Suggest extracting unrelated cleanups into a separate PR to keep the review surgical.',
+};
+const LANGUAGE_LENS_RULES: Array<{ extensions: string[]; instruction: string }> = [
+  { extensions: ['.ts', '.tsx'], instruction: 'TypeScript lens: verify type safety, avoid implicit any, and ensure null/undefined handling matches existing patterns.' },
+  { extensions: ['.js', '.jsx'], instruction: 'JavaScript lens: validate async error handling, promise usage, and input validation; avoid implicit globals.' },
+  { extensions: ['.py'], instruction: 'Python lens: watch for mutable default args, missing context managers, and exception handling gaps.' },
+  { extensions: ['.java'], instruction: 'Java lens: follow Effective Java patterns, ensure null safety, and keep equals/hashCode consistent.' },
+  { extensions: ['.go'], instruction: 'Go lens: check error handling, context cancellation, goroutine leaks, and deferred cleanup.' },
+  { extensions: ['.rs'], instruction: 'Rust lens: avoid unchecked unwrap in production paths and confirm ownership/borrowing is correct.' },
+];
 
 const promptTemplate = ({
   title,
@@ -147,6 +167,12 @@ const promptTemplate = ({
   toneMode,
   additionalFiles,
   specialInstructions,
+  reviewLensInstructions,
+  languageLenses,
+  multiPassContext,
+  priorSummaries,
+  metadataNote,
+  includePatches,
 }: {
   title: string;
   body: string | null;
@@ -158,8 +184,19 @@ const promptTemplate = ({
   toneMode: ToneMode;
   additionalFiles?: Array<{ path: string; content: string }>;
   specialInstructions?: string;
+  reviewLensInstructions?: string;
+  languageLenses?: string[];
+  multiPassContext?: string;
+  priorSummaries?: string;
+  metadataNote?: string;
+  includePatches?: boolean;
 }) => `You are an expert code reviewer embedded in a GitHub Action. Your job is to review pull requests with deep technical understanding, sharp judgment, and a human tone. You are NOT a linter. You think before you speak.
 ${specialInstructions ? `\n**NOTE FOR REVIEWER:** ${specialInstructions}\n` : ''}
+${metadataNote ? `\n**DEBIASED MODE:** ${metadataNote}\n` : ''}
+${reviewLensInstructions ? `\n**REVIEW LENS:** ${reviewLensInstructions}\n` : ''}
+${languageLenses && languageLenses.length ? `\n**LANGUAGE LENSES:**\n${languageLenses.map((lens) => `- ${lens}`).join('\n')}\n` : ''}
+${multiPassContext ? `\n**MULTI-PASS CONTEXT:** ${multiPassContext}\n` : ''}
+${priorSummaries ? `\n**PRIOR PASS SUMMARIES:**\n${priorSummaries}\n` : ''}
 
 Note: The reviewer will be run on the code checked out by CI. Do not assume runtime code differs from the diff you are given.
 
@@ -176,14 +213,15 @@ PHASE 1 — UNDERSTAND BEFORE COMMENTING
 Before writing a single comment:
 
 1. Read the PR title, description, and linked issue (if any).
-2. Read the FULL diff from start to finish.
-3. Identify the contributor's primary goal — what ONE thing are they trying to add or fix?
-4. Map every changed file against that goal. Classify each as:
+2. If linked issues describe acceptance criteria or business logic, verify the diff satisfies them and call out gaps.
+3. Read the FULL diff from start to finish.
+4. Identify the contributor's primary goal — what ONE thing are they trying to add or fix?
+5. Map every changed file against that goal. Classify each as:
    - CORE: directly implements the goal
    - SUPPORT: legitimately needed helpers
    - DRIFT: changes unrelated to the stated goal
    - CRITICAL: changes to shared infrastructure, config, auth, DB schema, or public APIs
-5. Only after this full-picture understanding, decide which lines actually need comments.
+6. Only after this full-picture understanding, decide which lines actually need comments.
 
 Do NOT comment on a line without context of why it exists. A comment without context is noise.
 
@@ -260,6 +298,7 @@ When you can improve code, don't just describe the fix — provide it as a GitHu
 \`\`\`
 
 It is strongly recommended to include commit suggestion blocks in inline comments whenever possible — prefer small, single-file suggestion blocks that the author can apply with one click. When providing suggestions, keep them focused, minimal, and safe to apply automatically.
+For mechanical lint or style fixes, always include a ready-to-apply suggestion block and treat it as an autofix.
 
 Only suggest code you're confident in. Never suggest refactors that span multiple files in a single suggestion block.
 
@@ -360,9 +399,11 @@ Skipped files due to cost-aware rules:
 ${skippedFiles.length ? skippedFiles.map((file) => `- ${file}`).join('\n') : '- None'}
 
 Changed files and patches:
-${changedFiles
-  .map((file) => `File: ${file.path}\n${file.patch ? truncatePatch(file.patch) : 'Patch not available.'}`)
-  .join('\n\n')}
+${includePatches === false
+  ? (changedFiles.length ? changedFiles.map((file) => `File: ${file.path}`).join('\n') : 'No changed files provided.')
+  : changedFiles
+    .map((file) => `File: ${file.path}\n${file.patch ? truncatePatch(file.patch) : 'Patch not available.'}`)
+    .join('\n\n')}
 ${additionalFiles && additionalFiles.length ? `\n\nADDITIONAL REQUESTED FILE CONTENTS:\n${additionalFiles.map((f) => `File: ${f.path}\n${truncatePatch(f.content)}`).join('\n\n')}` : ''}
 `;
 
@@ -389,6 +430,137 @@ function normalizeStringArray(value: unknown): string[] {
   return value
     .map((item) => (typeof item === 'string' ? item.trim() : ''))
     .filter(Boolean);
+}
+
+function normalizeReviewLens(value: ReviewLens | undefined): ReviewLens {
+  if (!value) {
+    return 'default';
+  }
+  if (REVIEW_LENS_VALUES.includes(value)) {
+    return value;
+  }
+  return 'default';
+}
+
+function getReviewLensInstructions(value: ReviewLens | undefined): string | undefined {
+  const lens = normalizeReviewLens(value);
+  const instructions = REVIEW_LENS_INSTRUCTIONS[lens];
+  return instructions.trim().length ? instructions : undefined;
+}
+
+function buildLanguageLenses(changedFiles: ChangedFile[]): string[] {
+  const extensions = new Set<string>();
+  for (const file of changedFiles) {
+    const normalizedPath = file.path.replace(/\\/g, '/');
+    const ext = path.extname(normalizedPath).toLowerCase();
+    if (ext) {
+      extensions.add(ext);
+    }
+  }
+  const lenses: string[] = [];
+  for (const rule of LANGUAGE_LENS_RULES) {
+    if (rule.extensions.some((ext) => extensions.has(ext))) {
+      lenses.push(rule.instruction);
+    }
+  }
+  return lenses;
+}
+
+function countPatchLines(patch: string | null): number {
+  if (!patch) {
+    return 0;
+  }
+  return patch.split(/\r?\n/).length;
+}
+
+function totalPatchLines(changedFiles: ChangedFile[]): number {
+  return changedFiles.reduce((total, file) => total + countPatchLines(file.patch), 0);
+}
+
+function buildGroupLabel(key: string): string {
+  const [segment, ext] = key.split(':');
+  if (ext === 'noext') {
+    return `${segment} files`;
+  }
+  return `${segment} ${ext} files`;
+}
+
+function buildReviewGroups(changedFiles: ChangedFile[]): Array<{ label: string; files: ChangedFile[] }> {
+  const grouped = new Map<string, ChangedFile[]>();
+  for (const file of changedFiles) {
+    const normalizedPath = file.path.replace(/\\/g, '/');
+    const parts = normalizedPath.split('/');
+    const top = parts.length > 1 ? parts[0] : 'root';
+    const ext = path.extname(normalizedPath).toLowerCase() || 'noext';
+    const key = `${top}:${ext}`;
+    const existing = grouped.get(key);
+    if (existing) {
+      existing.push(file);
+    } else {
+      grouped.set(key, [file]);
+    }
+  }
+
+  const results: Array<{ label: string; files: ChangedFile[] }> = [];
+  for (const [key, files] of Array.from(grouped.entries()).sort(([left], [right]) => left.localeCompare(right))) {
+    const labelBase = buildGroupLabel(key);
+    const ordered = [...files].sort((left, right) => left.path.localeCompare(right.path));
+    let bucket: ChangedFile[] = [];
+    let bucketLines = 0;
+    let bucketIndex = 1;
+    for (const file of ordered) {
+      const patchLines = countPatchLines(file.patch);
+      if (bucket.length && bucketLines + patchLines > MAX_GROUP_PATCH_LINES) {
+        const label = bucketIndex > 1 ? `${labelBase} (${bucketIndex})` : labelBase;
+        results.push({ label, files: bucket });
+        bucket = [];
+        bucketLines = 0;
+        bucketIndex += 1;
+      }
+      bucket.push(file);
+      bucketLines += patchLines;
+    }
+    if (bucket.length) {
+      const label = bucketIndex > 1 ? `${labelBase} (${bucketIndex})` : labelBase;
+      results.push({ label, files: bucket });
+    }
+  }
+  return results;
+}
+
+function uniqueStrings(values: string[]): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const value of values) {
+    const trimmed = value.trim();
+    if (!trimmed || seen.has(trimmed)) {
+      continue;
+    }
+    seen.add(trimmed);
+    result.push(trimmed);
+  }
+  return result;
+}
+
+function dedupeComments(comments: ReviewComment[]): ReviewComment[] {
+  const seen = new Set<string>();
+  const result: ReviewComment[] = [];
+  for (const comment of comments) {
+    const key = `${comment.path}:${comment.line}:${comment.body}`;
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    result.push(comment);
+  }
+  return result;
+}
+
+function truncateText(value: string, maxLength: number): string {
+  if (value.length <= maxLength) {
+    return value;
+  }
+  return `${value.slice(0, maxLength)}\n... [truncated]`;
 }
 
 function normalizeSummary(value: unknown): ReviewSummary {
@@ -449,6 +621,12 @@ interface PromptOptions {
   toneMode?: ToneMode;
   additionalFiles?: Array<{ path: string; content: string }>;
   specialInstructions?: string;
+  reviewLensInstructions?: string;
+  languageLenses?: string[];
+  multiPassContext?: string;
+  priorSummaries?: string;
+  metadataNote?: string;
+  includePatches?: boolean;
 }
 
 export function buildReviewPrompt({
@@ -462,8 +640,31 @@ export function buildReviewPrompt({
   toneMode = 'balanced',
   additionalFiles,
   specialInstructions,
+  reviewLensInstructions,
+  languageLenses,
+  multiPassContext,
+  priorSummaries,
+  metadataNote,
+  includePatches = true,
 }: PromptOptions): string {
-  return promptTemplate({ title, body, linkedIssues, repositoryFiles, changedFiles, skippedFiles, reviewMode, toneMode, additionalFiles, specialInstructions });
+  return promptTemplate({
+    title,
+    body,
+    linkedIssues,
+    repositoryFiles,
+    changedFiles,
+    skippedFiles,
+    reviewMode,
+    toneMode,
+    additionalFiles,
+    specialInstructions,
+    reviewLensInstructions,
+    languageLenses,
+    multiPassContext,
+    priorSummaries,
+    metadataNote,
+    includePatches,
+  });
 }
 
 export function parseReviewResponse(text: string): ReviewResponse {
@@ -659,6 +860,12 @@ function renderSummaryMarkdown(summary: ReviewSummary, separatePrSuggestions: st
   return sections.join('\n\n').trim() || 'Automated PR review generated by OpenRabbit.';
 }
 
+function buildPassSummary(label: string, summary: ReviewSummary, separatePrSuggestions: string[]): string {
+  const heading = `### ${label}`;
+  const body = renderSummaryMarkdown(summary, separatePrSuggestions);
+  return `${heading}\n${body}`.trim();
+}
+
 function formatCommentBody(comment: ReviewComment): string {
   const prefix = comment.type ? `**${comment.type}:** ` : '';
   const suggestionBlock = comment.suggestion ? `\n\n\`\`\`suggestion\n${comment.suggestion}\n\`\`\`` : '';
@@ -695,26 +902,24 @@ export async function runReview(context: ReviewContext): Promise<void> {
       : 'This PR is opened by Dependabot. Focus on whether dependency bumps are correct and whether lockfiles/lock updates are present; be concise.'
     : undefined;
 
-  const prompt = buildReviewPrompt({
-    title: pullRequest.title,
-    body: pullRequest.body,
-    linkedIssues,
-    repositoryFiles,
-    changedFiles,
-    skippedFiles,
-    reviewMode: context.reviewMode,
-    toneMode: context.toneMode,
-    specialInstructions,
-  });
+  const reviewLens = normalizeReviewLens(context.reviewLens);
+  const reviewLensInstructions = getReviewLensInstructions(reviewLens);
+  const baseLanguageLenses = buildLanguageLenses(changedFiles);
+  const debiasedMode = context.debiasedMode;
+  const redactedTitle = debiasedMode ? 'REDACTED' : pullRequest.title;
+  const redactedBody = debiasedMode ? null : pullRequest.body;
+  const debiasedNote = debiasedMode
+    ? 'PR title and description are redacted for the initial pass. Focus strictly on the code diff.'
+    : undefined;
+  const synthesisNote = debiasedMode
+    ? 'Initial passes were run with redacted metadata. You can now consider the PR title and description as secondary context; the code diff remains the source of truth.'
+    : undefined;
   const client = createLLMClient(context.llmProvider, {
     apiKey: context.llmApiKey,
     apiUrl: context.llmApiUrl,
     model: context.llmModel,
   });
-  // two-stage flow: ask model for a review; if it requests additional files, fetch them and re-run
-  let response = await client.complete(prompt);
   const maxRounds = 2;
-  let round = 0;
   async function fetchFileContent(path: string): Promise<string | null> {
     try {
       const { data } = await octokit.rest.repos.getContent({ owner: context.owner, repo: context.repo, path, ref: pullRequest.head.sha });
@@ -732,37 +937,151 @@ export async function runReview(context: ReviewContext): Promise<void> {
     }
   }
 
-  while (round < maxRounds && response.requestedFiles && response.requestedFiles.length) {
-    const uniquePaths = Array.from(new Set(response.requestedFiles.map((p) => p.replace(/^\//, ''))));
-    const additionalFiles: Array<{ path: string; content: string }> = [];
-    for (const p of uniquePaths) {
-      const content = await fetchFileContent(p);
-      if (content) {
-        additionalFiles.push({ path: p, content });
-      }
-    }
-
-    if (!additionalFiles.length) break;
-
-    const followupPrompt = buildReviewPrompt({
-      title: pullRequest.title,
-      body: pullRequest.body,
+  async function runReviewPass(options: {
+    title: string;
+    body: string | null;
+    changedFiles: ChangedFile[];
+    reviewMode: import('./types.js').ReviewMode;
+    toneMode: ToneMode;
+    additionalFiles?: Array<{ path: string; content: string }>;
+    includePatches?: boolean;
+    multiPassContext?: string;
+    priorSummaries?: string;
+    metadataNote?: string;
+    languageLenses?: string[];
+  }): Promise<ReviewResponse> {
+    const {
+      title,
+      body,
+      changedFiles,
+      reviewMode,
+      toneMode,
+      additionalFiles,
+      includePatches,
+      multiPassContext,
+      priorSummaries,
+      metadataNote,
+      languageLenses,
+    } = options;
+    let response = await client.complete(buildReviewPrompt({
+      title,
+      body,
       linkedIssues,
       repositoryFiles,
       changedFiles,
       skippedFiles,
+      reviewMode,
+      toneMode,
+      additionalFiles,
+      specialInstructions,
+      reviewLensInstructions,
+      languageLenses,
+      multiPassContext,
+      priorSummaries,
+      metadataNote,
+      includePatches,
+    }));
+    let round = 0;
+    while (round < maxRounds && response.requestedFiles && response.requestedFiles.length) {
+      const uniquePaths = Array.from(new Set(response.requestedFiles.map((p) => p.replace(/^\//, ''))));
+      const followupFiles: Array<{ path: string; content: string }> = [];
+      for (const p of uniquePaths) {
+        const content = await fetchFileContent(p);
+        if (content) {
+          followupFiles.push({ path: p, content });
+        }
+      }
+
+      if (!followupFiles.length) break;
+
+      response = await client.complete(buildReviewPrompt({
+        title,
+        body,
+        linkedIssues,
+        repositoryFiles,
+        changedFiles,
+        skippedFiles,
+        reviewMode,
+        toneMode,
+        additionalFiles: followupFiles,
+        specialInstructions,
+        reviewLensInstructions,
+        languageLenses,
+        multiPassContext,
+        priorSummaries,
+        metadataNote,
+        includePatches,
+      }));
+      round += 1;
+    }
+    return response;
+  }
+
+  const useMultiPass = totalPatchLines(changedFiles) > LARGE_DIFF_LINE_THRESHOLD;
+  let summary: ReviewSummary;
+  let allComments: ReviewComment[] = [];
+  let separatePrSuggestions: string[] = [];
+
+  if (useMultiPass && changedFiles.length) {
+    const groups = buildReviewGroups(changedFiles);
+    const passSummaries: string[] = [];
+    const passComments: ReviewComment[] = [];
+    const passSuggestions: string[] = [];
+    for (let index = 0; index < groups.length; index += 1) {
+      const group = groups[index];
+      const passLanguageLenses = buildLanguageLenses(group.files);
+      const response = await runReviewPass({
+        title: redactedTitle,
+        body: redactedBody,
+        changedFiles: group.files,
+        reviewMode: context.reviewMode,
+        toneMode: context.toneMode,
+        includePatches: true,
+        multiPassContext: `Pass ${index + 1} of ${groups.length}. Focus only on ${group.label}. Do not comment on files outside this group.`,
+        metadataNote: debiasedNote,
+        languageLenses: passLanguageLenses,
+      });
+      passComments.push(...response.comments);
+      passSuggestions.push(...response.separatePrSuggestions);
+      passSummaries.push(buildPassSummary(group.label, response.summary, response.separatePrSuggestions));
+    }
+    const priorSummaries = truncateText(passSummaries.join('\n\n'), MAX_PASS_SUMMARY_CHARS);
+    const synthesisResponse = await runReviewPass({
+      title: pullRequest.title,
+      body: pullRequest.body,
+      changedFiles,
+      reviewMode: 'summary',
+      toneMode: context.toneMode,
+      includePatches: false,
+      multiPassContext: `Synthesis pass across ${groups.length} groups. Provide a holistic review of the entire PR. Do not add new inline comments.`,
+      priorSummaries,
+      metadataNote: synthesisNote,
+      languageLenses: baseLanguageLenses,
+    });
+    summary = synthesisResponse.summary;
+    allComments = dedupeComments(passComments);
+    separatePrSuggestions = uniqueStrings([...passSuggestions, ...synthesisResponse.separatePrSuggestions]);
+  } else {
+    const response = await runReviewPass({
+      title: redactedTitle,
+      body: redactedBody,
+      changedFiles,
       reviewMode: context.reviewMode,
       toneMode: context.toneMode,
-      additionalFiles,
+      includePatches: true,
+      metadataNote: debiasedNote,
+      languageLenses: baseLanguageLenses,
     });
-    response = await client.complete(followupPrompt);
-    round++;
+    summary = response.summary;
+    allComments = response.comments;
+    separatePrSuggestions = response.separatePrSuggestions;
   }
-  const reviewBody = renderSummaryMarkdown(response.summary, response.separatePrSuggestions);
+
+  const reviewBody = renderSummaryMarkdown(summary, separatePrSuggestions);
   const commentablePaths = new Set(changedFiles.map((file) => file.path));
   const comments = context.reviewMode === 'summary'
     ? []
-    : response.comments.filter((comment) => commentablePaths.has(comment.path)).slice(0, 5);
+    : allComments.filter((comment) => commentablePaths.has(comment.path)).slice(0, 5);
 
   const mappedComments: Array<{ path: string; position: number; body: string }> = [];
   const unmappedComments: ReviewComment[] = [];
