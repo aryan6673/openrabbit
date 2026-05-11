@@ -5,12 +5,12 @@
 <h1 align="center">OpenRabbit</h1>
 
 <p align="center">
- free, open-source, self-hosted GitHub PR reviewer that replaces coderabbit.
+  free, open-source, self-hosted GitHub PR reviewer that replaces coderabbit.
 </p>
 
 <p align="center">
   <b>:copilot:</b> <a href="https://github.com/aryan6673/openrabbit/releases/latest"><b>Get Workflow</b></a><br>
-  <sub> </sub>
+  <sub></sub>
 </p>
 
 ---
@@ -30,6 +30,7 @@ OpenRabbit is a free (you can even get a free llm api explained below), open-sou
 ---
 
 ### Zero Hosting Required
+
 You don't need to pay for a subscription or manage a server. OpenRabbit runs **completely** on your own GitHub Actions environment. Your code stays in your runner; it is never proxied or stored by a central authority.
 
 ---
@@ -40,6 +41,7 @@ Simply create a file at `.github/workflows/reviewer.yml` and paste the following
 
 ```yaml
 name: OpenRabbit Reviewer
+
 on:
   pull_request_target:
     types: [opened, reopened, edited, synchronize]
@@ -56,12 +58,13 @@ jobs:
         uses: aryan6673/openrabbit@main
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          llm_api_key: ${{ secrets.LLM_API_KEY }} 
+          llm_api_key: ${{ secrets.LLM_API_KEY }}
           llm_provider: openrouter # Or groq
           llm_model: openrouter/free # Use world-class models for $0
           review_mode: both
           tone_mode: balanced
 ```
+
 *Note: Ensure you add your `LLM_API_KEY` to your GitHub Repository Secrets.*
 
 ---
@@ -105,7 +108,7 @@ OpenRabbit **destroys this risk** by shifting the power back to the developer. B
 ## Getting a Free API Key
 
 By default, this project uses the **OpenRouter free model pool**.  
-Yeah, it’s not perfect — the main issue is rate limits. To deal with that, it automatically rotates between different free models on OpenRouter so you don’t keep hitting the same limit again and again. It works, but it’s not super reliable or consistent.
+It’s not perfect, the main issue is rate limits. To deal with that, it automatically rotates between different free models on OpenRouter so you don’t keep hitting the same limit again and again. It works, but it’s not super reliable or consistent.
 
 If you want better performance and fewer interruptions, you should use your own API key.
 
@@ -117,18 +120,19 @@ If you want better performance and fewer interruptions, you should use your own 
 2. Sign up / log in  
 3. Open your dashboard  
 4. Generate an API key  
-5. Copy the key
+5. Copy the key  
 
-Then add it to your project :
+Then add it to your project:
 
 ```bash
 LLM_API_KEY=your_api_key_here
 ```
+
+---
+
 ## Adding Your API Key to GitHub Actions (Recommended)
 
 Instead of putting your API key in a `.env` file, you should store it securely in **GitHub Actions secrets**. This keeps your key safe and prevents it from being exposed in your code.
-
----
 
 ### Steps to Add Your API Key
 
@@ -143,21 +147,25 @@ Instead of putting your API key in a `.env` file, you should store it securely i
 
 ---
 
-
 ## Review Modes
 
-- **summary:** single summary review comment (no inline comments).  
-- **inline:** post only inline comments and suggestions.  
-- **both:** post both the summary and inline comments (default).
+- **summary:** single summary review comment (no inline comments)  
+- **inline:** post only inline comments and suggestions  
+- **both:** post both the summary and inline comments (default)
+
+---
 
 ## Contributing
 
-- Open an issue or PR.  
-- See `src/llm` for adding new provider adapters.
+- Open an issue or PR  
+- See `src/llm` for adding new provider adapters  
+
+---
 
 ## License
 
 Licensed under the MIT license.
-#
-![version](https://img.shields.io/badge/version-v0.5.3-orange)
 
+---
+
+![version](https://img.shields.io/badge/version-v0.5.2-orange)
