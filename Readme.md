@@ -168,4 +168,4 @@ Licensed under the MIT license.
 
 ---
 
-![version](https://img.shields.io/badge/version-v0.5.4-orange)
+![version](https://img.shields.io/badge/version-v0.5.5-orange)
