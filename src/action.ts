@@ -53,7 +53,7 @@ async function run(): Promise<void> {
     repo: repository.repo,
     pullNumber: pullRequestNumber,
     githubToken,
-    llmProvider: llmProvider as import('./types.js').LLMProvider,
+    llmProvider: llmProvider as import('types.js').LLMProvider,
     llmApiUrl,
     llmApiKey,
     llmModel,
