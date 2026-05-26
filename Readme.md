@@ -3,7 +3,7 @@
 </p>
 
 <h1 align="center">OpenRabbit</h1>
-
+This is a security vulanrablity
 <p align="center">
   free, open-source, self-hosted GitHub PR reviewer that replaces coderabbit.
 </p>
