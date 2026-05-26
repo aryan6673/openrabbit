@@ -129,23 +129,6 @@ If you want better performance and fewer interruptions, you should use your own 
 
 ---
 
-## Adding Your API Key to GitHub Actions (Recommended)
-
-Instead of putting your API key in a `.env` file, you should store it securely in **GitHub Actions secrets**. This keeps your key safe and prevents it from being exposed in your code.
-
-### Steps to Add Your API Key
-
-1. Go to your repository on GitHub  
-2. Click on **Settings**  
-3. In the left sidebar, go to **Secrets and variables → Actions**  
-4. Click **New repository secret**  
-5. Add your key:
-   - **Name**: `LLM_API_KEY`  
-   - **Value**: paste your API key  
-6. Click **Add secret**
-
----
-
 ## Review Modes
 
 - **summary:** single summary review comment (no inline comments)  
