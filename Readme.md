@@ -64,9 +64,24 @@ jobs:
           review_mode: both
           tone_mode: balanced
 ```
-
-*Note: Ensure you add your `LLM_API_KEY` to your GitHub Repository Secrets. (guide below)*
-
+> [!IMPORTANT]  
+> ## Setting Up Your API Key Securely
+>
+> Never hardcode your API key directly into your workflow file or commit it to GitHub.
+>
+> Instead, store it safely using **GitHub Actions Secrets**:
+>
+> 1. Open your GitHub repository  
+> 2. Go to **Settings**  
+> 3. Navigate to **Secrets and variables → Actions**  
+> 4. Click **New repository secret**  
+> 5. Create a secret named `LLM_API_KEY`  
+> 6. Paste your API key as the value  
+> 7. Click **Add secret**
+>
+> OpenRabbit will automatically use the secret securely inside your GitHub Actions workflow.
+>
+> This keeps your API key encrypted and prevents accidental leaks in commits, logs, or pull requests.
 ---
 
 ## The Open Source Fight
@@ -111,22 +126,6 @@ By default, this project uses the **OpenRouter free model pool**.
 It’s not perfect, the main issue is rate limits. To deal with that, it automatically rotates between different free models on OpenRouter so you don’t keep hitting the same limit again and again. It works, but it’s not super reliable or consistent.
 
 If you want better performance and fewer interruptions, you should use your own API key.
-
----
-
-### Option 1: Get a Free API Key from OpenRouter
-
-1. Go to https://openrouter.ai  
-2. Sign up / log in  
-3. Open your dashboard  
-4. Generate an API key  
-5. Copy the key  
-
-Then add it to your project:
-
-```bash
-LLM_API_KEY=your_api_key_here
-```
 
 ---
 
