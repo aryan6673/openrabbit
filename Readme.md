@@ -65,7 +65,7 @@ jobs:
           tone_mode: balanced
 ```
 
-*Note: Ensure you add your `LLM_API_KEY` to your GitHub Repository Secrets.*
+*Note: Ensure you add your `LLM_API_KEY` to your GitHub Repository Secrets. (guide below)*
 
 ---
 
